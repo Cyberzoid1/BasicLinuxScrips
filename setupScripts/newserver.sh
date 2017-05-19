@@ -14,11 +14,12 @@ sudo apt-get install oracle-java8-set-default
 java -version
 
 echo -----installs
-sudo apt-get install -y inxi htop screen
+sudo apt-get install -y inxi htop screen git build-essential
 sudo apt-get install -y openssh-server openssh-client
-echo ------updae/upgrade/autoremove
+echo ------update/upgrade/autoremove
 sudo apt-get -y update
 sudo apt-get upgrade
 sudo apt-get autoremove
-echo -------shutdown
-shutdown -h 2
+
+echo "Recommend to reboot"
+

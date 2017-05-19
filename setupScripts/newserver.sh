@@ -22,7 +22,10 @@ sudo apt-get upgrade
 sudo apt-get autoremove
 
 echo "Updating path"
-export PATH=$PATH:~/bin:~/bin/BasicLinuxScripts
+export PATH=$PATH:$HOME/bin
+
+#Create sybolic link to bin
+ln -s $HOME/bin/BasicLinuxScripts/update $HOME/bin/update
 
 echo "Recommend to reboot"
 

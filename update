@@ -1,0 +1,91 @@
+#!/bin/bash
+# add this line to sudo crontab -e
+# 0 5 * * *     /home/pi/bin/update autodownload  >/dev/null
+#update this after every edit session
+
+#version major.minor.nonFunctionional
+VERSION="1.1.2"
+# version 1.1.1  comment updates
+# version 1.1.2  removed USER so $USER takes from sysem var
+
+#things needign to be updated
+#file touch owner ship from pi::root to $user:root??
+# switch * show help and if no arguements then update/upgrade
+
+#USER=pi
+FILE=/home/$USER/autoupdateLog.log
+
+if [ ! -f $FILE ];
+then
+   echo "File $FILE does not exist. creating"
+   touch $FILE
+   sudo chown pi:root $FILE
+fi
+
+Update() {
+	echo ""
+	echo Starting Update
+	echo ""
+	sudo apt-get update
+	echo ""
+	echo Starting Upgrade
+	echo ""
+	sudo apt-get upgrade
+	echo ""
+	echo Finished.
+}
+
+Upgrade() {
+	echo ""
+	echo Starting only Upgrade
+	echo ""
+	sudo apt-get upgrade
+	echo ""
+	echo Finished.
+}
+
+clean() {
+	echo ""
+	echo Starting autoremove
+	echo ""
+	sudo apt-get autoremove
+	echo ""
+	echo Starting autoclean
+	echo ""
+	sudo apt-get autoclean
+	echo ""
+	echo Finished.
+}
+
+
+# for daily cron job
+AutoDownload() {
+	NOW=`date "+%Y-%m-%d_%Hh%M"`
+	echo "-----Autoupdate check started"
+	sudo echo "-----Autoupdate check started $NOW -------------------------" >> $FILE
+	sudo apt-get update >> /dev/null
+	echo ""
+	sudo apt-get upgrade -d -y >> $FILE
+	sudo echo "-----Autoupdate check Finished ----------------------------------------
+	    " >> $FILE
+	echo "-----Autoupdate check Finished"
+}
+
+case "$1" in
+	-v|--v|--version)
+		echo "Update.sh version: $VERSION"
+		;;
+	autodownload)
+		AutoDownload
+		;;
+	clean)
+		clean
+		;;
+	upgrade)
+		Upgrade
+		;;
+	*)
+		Update
+		;;
+esac
+exit 0

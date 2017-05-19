@@ -1,0 +1,308 @@
+#!/bin/bash
+# /etc/init.d/minecraft
+# version 0.4.1 2015-05-07 (YYYY-MM-DD)
+#
+### BEGIN INIT INFO
+# Provides:   minecraft
+# Required-Start: $local_fs $remote_fs screen-cleanup
+# Required-Stop:  $local_fs $remote_fs
+# Should-Start:   $network
+# Should-Stop:    $network
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
+# Short-Description:    Minecraft server
+# Description:    Starts the minecraft server
+### END INIT INFO
+
+#Settings
+#SERVICE='minecraft_server.jar'
+SERVICE='forge-1.7.10-10.13.4.1614-1.7.10-universal.jar'
+SCREENNAME='minecraft_server_ResonantRise3301'
+OPTIONS='nogui'
+USERNAME='minecraft'
+WORLD='ATWorld'
+MCPATH='/home/minecraft/ResonantRise_3301'
+BACKUPPATH='/home/minecraft/ResonantRise_Backups_3301'
+MAXHEAP=2048
+MINHEAP=1024
+HISTORY=1024
+CPU_COUNT=2
+#INVOCATION="java -Xmx${MAXHEAP}M -Xms${MINHEAP}M -XX:+UseConcMarkSweepGC \
+#-XX:+CMSIncrementalPacing -XX:ParallelGCThreads=$CPU_COUNT -XX:+AggressiveOpts \
+#-jar $SERVICE $OPTIONS" 
+
+INVOCATION="java -Xmx${MAXHEAP}M -Xms${MINHEAP}M  \
+-XX:MaxPermSize=256M -jar $SERVICE $OPTIONS" 
+
+ME=`whoami`
+as_user() {
+  if [ "$ME" = "$USERNAME" ] ; then
+    bash -c "$1"
+  else
+    su - "$USERNAME" -c "$1"
+  fi
+}
+
+server_command() {
+  command="$1";
+  #echo "command is: $command"
+	as_user "screen -p 0 -S ${SCREENNAME} -X stuff \"$command$(printf \\r)\""
+}
+
+mc_start() {
+  if  pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    echo "$SCREENNAME is already running!"
+  else
+    echo "Starting $SCREENNAME..."
+    cd $MCPATH
+    as_user "cd $MCPATH && screen -h $HISTORY -dmS ${SCREENNAME} $INVOCATION"
+    sleep 7
+    if pgrep -u $USERNAME -f $SERVICE > /dev/null
+    then
+      echo "$SCREENNAME is now running."
+    else
+      echo "Error! Could not start $SCREENNAME!"
+    fi
+  fi
+}
+
+mc_saveoff() {
+  if pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    echo "$SCREENNAME is running... suspending saves"
+    #as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"say SERVER BACKUP STARTING. Server going readonly...\"\015'"
+    #as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"save-off\"\015'"
+    #as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"save-all\"\015'"
+	server_command "say SERVER BACKUP STARTING. Server going readonly..."
+	server_command "save-off"
+	server_command "save-all"
+    sync
+    sleep 10
+  else
+    echo "$SCREENNAME is not running. Not suspending saves."
+  fi
+}
+
+mc_saveon() {
+  if pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    echo "$SERVICE is running... re-enabling saves"
+    #as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"save-on\"\015'"
+    #as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
+	server_command "save-on"
+	server_command "say SERVER BACKUP ENDED. Server going read-write..."
+  else
+    echo "$SERVICE is not running. Not resuming saves."
+  fi
+}
+
+mc_stop() {
+  if pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    echo "Stopping $SCREENNAME"
+    #as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"say SERVER SHUTTING DOWN IN 10 SECONDS. Saving map...\"\015'"
+    #as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"save-all\"\015'"
+	server_command "say SERVER SHUTTING DOWN IN 10 SECONDS. Saving map..."
+	server_command "save-all"
+    sleep 10
+    as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"stop\"\015'"
+	#as_user "screen -p 0 -S ${SCREENNAME} -X stuff \"stop$(printf \\r)\""
+	server_command "stop"
+	echo "Giving program time to shutdown."
+	COUNT=40
+	while pgrep -u $USERNAME -f $SERVICE > /dev/null; do 
+		#echo "$COUNT"
+		if [ $COUNT -le 1 ]
+		then
+			echo "Timed out while waiting for $SCREENNAME to stop"
+			break
+		fi
+		let COUNT-=1
+		sleep 1
+	done #while loop
+    #sleep 30
+  else
+    echo "$SCREENNAME was not running."
+  fi
+  #---post check-------------------------------------------
+  if pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    echo "Error! $SCREENNAME could not be stopped."
+  else
+    echo "$SCREENNAME is stopped."
+  fi
+} 
+
+auto_backup() {
+    if pgrep -u $USERNAME -f $SERVICE > /dev/null
+    then
+      echo "$SCREENNAME is running. Autobackup started"
+	  #mc_backup
+	  mc_saveoff
+	  NOW=`date "+%Y-%m-%d_%Hh%M"`
+	  echo "Backing up minecraft world..."
+	  #SIZE=`du -sk $MCPATH/$WORLD/ | cut -f 1`
+      #tar cf - $MCPATH/$WORLD/ | pv  -s ${SIZE}k | gzip -c > $BACKUPPATH/$WORLD-Backup-$NOW-Auto.tar.gz
+	  
+	  rm $BACKUPPATH/$WORLD-Backup-Auto-48.tar.gz
+	  COUNTER=48
+	  while [ $COUNTER -gt 0 ]; do
+		#echo "Counter is $COUNTER"
+		#mv $BACKUPPATH/$WORLD-Backup--Test-$(($COUNTER-1)).tar.gz $BACKUPPATH/$WORLD-Backup--Test-$COUNTER.tar.gz
+		mv $BACKUPPATH/$WORLD-Backup-Auto-$(($COUNTER-1)).tar.gz $BACKUPPATH/$WORLD-Backup-Auto-$COUNTER.tar.gz
+		let COUNTER=COUNTER-1
+	  done
+	  
+	  echo "Backing up minecraft world..."
+	  SIZE=`du -sk $MCPATH/$WORLD/ | cut -f 1`
+      tar cf - $MCPATH/$WORLD/ | pv  -s ${SIZE}k | gzip -c > $BACKUPPATH/$WORLD-Backup-Auto-0.tar.gz
+	  
+	  mc_saveon
+	  echo "$SCREENNAME is running. Autobackup finished"
+    else
+      echo "$SCREENNAME is not running. Autobackup canceled"
+    fi
+}
+
+test_backup() {
+    if pgrep -u $USERNAME -f $SERVICE > /dev/null
+    then
+      echo "$SCREENNAME is running. Testbackup started"
+	  #mc_backup
+	  #mc_saveoff
+	  NOW=`date "+%Y-%m-%d_%Hh%M"`
+	  rm $BACKUPPATH/$WORLD-Backup-5-Test.tar.gz
+	  COUNTER=5
+	  while [ $COUNTER -gt 0 ]; do
+		echo "Counter is $COUNTER"
+		#mv $BACKUPPATH/$WORLD-Backup--Test-$(($COUNTER-1)).tar.gz $BACKUPPATH/$WORLD-Backup--Test-$COUNTER.tar.gz
+		mv $BACKUPPATH/$WORLD-Backup-Test-$(($COUNTER-1)).tar.gz $BACKUPPATH/$WORLD-Backup-Test-$COUNTER.tar.gz
+		let COUNTER=COUNTER-1
+	  done
+	  
+	  echo "Backing up minecraft world..."
+	  SIZE=`du -sk $MCPATH/$WORLD/ | cut -f 1`
+      tar cf - $MCPATH/logs/ | pv  -s ${SIZE}k | gzip -c > $BACKUPPATH/$WORLD-Backup-Test-0.tar.gz
+	  #mc_saveon
+	  echo "$SCREENNAME is running. Testbackup finished"
+    else
+      echo "$SCREENNAME is not running. Testbackup canceled"
+    fi
+}
+
+mc_backup() {
+   mc_saveoff
+   
+   NOW=`date "+%Y-%m-%d_%Hh%M"`
+   BACKUP_FILE="$BACKUPPATH/${WORLD}_${NOW}.tar"
+   echo "Backing up minecraft world..."
+   #as_user "cd $MCPATH && cp -r $WORLD $BACKUPPATH/${WORLD}_`date "+%Y.%m.%d_%H.%M"`"
+   #as_user "tar -C \"$MCPATH\" -cf \"$BACKUP_FILE\" $WORLD"
+   
+   #as_user "tar --backup=numbered --totals --checkpoint=5000 -czf $BACKUPPATH/ATWorld_Backup.tar.gz ResonantRise/ATWorld/"
+	
+	SIZE=`du -sk $MCPATH/$WORLD/ | cut -f 1`
+    tar cf - $MCPATH/$WORLD/ | pv  -s ${SIZE}k | gzip -c > $BACKUPPATH/$WORLD-Backup-$NOW.tar.gz
+
+   #echo "Backing up $SCREENNAME"
+   #as_user "tar -C \"$MCPATH\" -rf \"$BACKUP_FILE\" $SERVICE"
+   #as_user "cp \"$MCPATH/$SERVICE\" \"$BACKUPPATH/minecraft_server_${NOW}.jar\""
+
+   mc_saveon
+
+   #echo "Compressing backup..."
+   #as_user "gzip -f \"$BACKUP_FILE\""
+   echo "backup Done."
+}
+
+mc_command() {
+  command="$1";
+  if pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    pre_log_len=`wc -l "$MCPATH/logs/latest.log" | awk '{print $1}'`
+    #echo "$SCREENNAME is running... executing command"
+    #as_user "screen -p 0 -S ${SCREENNAME} -X eval 'stuff \"$command\"\015'"
+	as_user "screen -p 0 -S ${SCREENNAME} -X stuff \"$command$(printf \\r)\""
+    sleep .1 # assumes that the command will run and print to the log file in less than .1 seconds
+    # print output
+    tail -n $[`wc -l "$MCPATH/logs/latest.log" | awk '{print $1}'`-$pre_log_len] "$MCPATH/logs/latest.log"
+  else
+	echo "SCREENNAME was not running."
+  fi
+}
+
+mc_restoreBackup() {
+	mc_stop
+	NOW=`date "+%Y-%m-%d_%Hh%M"`
+	echo "backup file $1"
+	echo "Backing up minecraft world.."
+	SIZE=`du -sk $MCPATH/$WORLD/ | cut -f 1`
+    tar cf - $MCPATH/$WORLD | pv  -s ${SIZE}k | gzip -c > $BACKUPPATH/$WORLD-Backup-$NOW-PreRestore.tar.gz
+	echo "Removing $WORLD"
+	rm -r $MCPATH/$WORLD
+	
+	echo "Restoring Backup"
+		#SIZE=`du -sk $BACKUPPATH/$1 | cut -f 1`
+		#gzip -c > $BACKUPPATH/$WORLD-Backup-$NOW-PreRestore.tar.gz | pv  -s ${SIZE}k | tar cf - $MCPATH/$WORLD
+	tar -xvzf $BACKUPPATH/$1  -C /
+}
+	
+mc_overviewer() {
+	echo "Overviewer"
+	overviewer.py	$MCPATH/$WORLD $MCPATH/mcMap
+}
+
+#Start-Stop here
+echo "MCstartscript_3301."
+case "$1" in
+  start)
+    mc_start
+    ;;
+  stop)
+    mc_stop
+    ;;
+  restart)
+    mc_stop
+    mc_start
+    ;;
+  backup)
+    mc_backup
+	;;
+  autobackup)
+	auto_backup
+    ;;
+  testBackup)
+		test_backup
+		;;
+  restoreBackup)
+	mc_restoreBackup $2
+	;;
+  status)
+    if pgrep -u $USERNAME -f $SERVICE > /dev/null
+    then
+      echo "$SCREENNAME is running."
+	  #echo "pid = "`pgrep -u $USERNAME -f $SERVICE`
+    else
+      echo "$SCREENNAME is not running."
+    fi
+    ;;
+  command)
+    if [ $# -gt 1 ]; then
+      shift
+      mc_command "$*"
+    else
+      echo "Must specify server command (try 'help'?)"
+    fi
+    ;;
+overviewer)
+	mc_overviewer
+	;;
+
+  *)
+  echo "Usage: $0 {start|stop|status|restart|backup|autobackup|restoreBackup <backup>|command \"server command\"}"
+  exit 1
+  ;;
+esac
+
+exit 0

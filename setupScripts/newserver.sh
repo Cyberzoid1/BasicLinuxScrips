@@ -21,5 +21,8 @@ sudo apt-get -y update
 sudo apt-get upgrade
 sudo apt-get autoremove
 
+echo "Updating path"
+export PATH=$PATH:~/bin:~/bin/BasicLinuxScripts
+
 echo "Recommend to reboot"
 

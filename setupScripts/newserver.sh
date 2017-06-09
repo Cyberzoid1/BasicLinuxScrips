@@ -8,40 +8,43 @@
 # ensure executable  chmod +x $HOME/bin/BasicLinuxScripts/setupScripts/newserver.sh
 # ./$HOME/bin/BasicLinuxScripts/setupScripts/newserver.sh
 
-echo "Starting Update"
-echo ""
+echo "Starting Update\n"
 sudo apt-get update
-echo "-----upgrade"
+echo "\n-----upgrade------"
 sudo apt-get -y upgrade
 
-echo "-----java install" #http://askubuntu.com/questions/464755/how-to-install-openjdk-8-on-14-04-lts
+echo "\n-----java install------" #http://askubuntu.com/questions/464755/how-to-install-openjdk-8-on-14-04-lts
 sudo add-apt-repository ppa:webupd8team/java -y
 sudo apt-get update
-sudo apt-get install oracle-java8-installer
-sudo apt-get install oracle-java8-set-default
+#set auto accept license
+sudo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | sudo /usr/bin/debconf-set-selections
+sudo apt-get install -y oracle-java8-installer
+sudo apt-get install -y oracle-java8-set-default
 java -version
 
-echo "-----installs"
-sudo apt-get install -y inxi htop screen git build-essential
+echo "\n-----program installs------"
+sudo apt-get install -y inxi htop screen git build-essential cmake
 sudo apt-get install -y openssh-server openssh-client
-echo "------update/upgrade/autoremove"
-sudo apt-get -y update
-sudo apt-get upgrade
-sudo apt-get autoremove
+# Other packages to note: ubuntu-restricted-extras cmake
+echo "\n------update"
+sudo apt-get update
+echo "\n------upgrade------"
+sudo apt-get -y upgrade
+echo "\n------autoremove------"
+sudo apt-get -y autoremove
 
-echo "Updating path"
+echo "\n------Updating path------"
 sudo export PATH=$PATH:$HOME/bin
-
-#This was probably already setup
-echo "Creating User Bin"
-mkdir $HOME/bin
-
-echo "Configuring git"
-git config --global user.email n2143_sites2@outlook.com
-git config --global user.name "Nick Krenowicz"
-
 #Create sybolic link for update script.  PATH variable is setup only to $HOME/bin
 ln -s $HOME/bin/BasicLinuxScripts/update $HOME/bin/update
 
-echo "Recommend to reboot"
+#This was probably already setup
+echo "\n------Creating User Bin------"
+mkdir $HOME/bin
+
+echo "\n------Configuring git------"
+git config --global user.email n2143_sites2@outlook.com
+git config --global user.name "Nick Krenowicz"
+
+echo "\n\nRecommend to reboot"
 echo "Then do sudo apt-get dist-upgrade  if desired"

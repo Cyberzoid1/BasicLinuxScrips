@@ -23,7 +23,7 @@ if [ ! -f $FILE ];
 then
    echo "File $FILE does not exist. creating"
    touch $FILE
-   sudo chown pi:root $FILE
+   sudo chown $USER:root $FILE
 fi
 
 

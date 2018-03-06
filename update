@@ -15,15 +15,16 @@ VERSION="1.4.0"
 #file touch owner ship from pi::root to $user:root??
 # switch * show help and if no arguements then update/upgrade
 
+#get local username
+LUSER=${SUDO_USER:-$USER}
 
-#USER=pi
-FILE=/home/$USER/autoupdateLog.log
+FILE=/home/$LUSER/autoupdateLog.log
 
 if [ ! -f $FILE ];
 then
    echo "File $FILE does not exist. creating"
    touch $FILE
-   sudo chown $USER:root $FILE
+   sudo chown $LUSER:root $FILE
 fi
 
 
@@ -99,6 +100,7 @@ case "$1" in
 		;;
 	*)
 		Update
+		clean
 		;;
 esac
 exit 0

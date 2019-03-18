@@ -4,7 +4,7 @@
 #update this after every edit session
 
 #version major.minor.nonFunctionional
-VERSION="1.5.1"
+VERSION="1.6.1"
 # version 1.1.1  comment updates
 # version 1.1.2  removed USER so $USER takes from sysem var
 # version 1.2.0  git version added root check & changed to apt from apt-get
@@ -12,10 +12,8 @@ VERSION="1.5.1"
 # version 1.4.0  better check for root.
 # version 1.5.0  fixed local user. runs clean by default
 # version 1.6.0  reworked program flow and improved argument parsing
+# version 1.6.1  fixed logging
 
-#things needign to be updated
-#file touch owner ship from pi::root to $user:root??
-# switch * show help and if no arguements then update/upgrade
 
 #get local username
 LUSER=${SUDO_USER:-$USER}
@@ -26,7 +24,7 @@ if [ ! -f $FILE ];
 then
    echo "File $FILE does not exist. creating"
    touch $FILE
-   sudo chown $LUSER:root $FILE
+   sudo chown $LUSER:$LUSER $FILE
 fi
 
 
@@ -76,8 +74,9 @@ do
 	case "$1" in
 		autodownload)
 			F_UPDATE=false
-			F_UPGRADE=true
+			F_UPGRADE=false
 			F_AutoDownload=true
+			F_CLEAN=false
 			;;
 		clean)		# Clean only
 			F_UPDATE=false
@@ -140,14 +139,12 @@ fi
 # Autodownload
 if [ "$F_UPGRADE" = false ] && [ "$F_AutoDownload" = true ]; then
 	NOW=`date "+%Y-%m-%d_%Hh%M"`
-	echo "-----Autoupdate check started"
-	sudo echo "-----Autoupdate check started $NOW -------------------------" >> $FILE
-	sudo apt update >> /dev/null
+	echo "-----Autoupdate check started $NOW -------------------------" | tee -a $FILE
+	sudo apt update -qq
 	echo ""
-	sudo apt upgrade -d -y >> $FILE
-	sudo echo "-----Autoupdate check Finished ----------------------------------------
-	    " >> $FILE
-	echo "-----Autoupdate check Finished"
+	sudo apt upgrade -d -y
+	echo "-----Autoupdate check finished -----------------------------"| tee -a $FILE
+	#F_PRINTUPGRADED=true
 fi
 
 # Clean
@@ -155,21 +152,16 @@ if [ "$F_CLEAN" = true ]; then
    	echo -e "\nStarting autoremove\n"
 	sudo apt autoremove
 	echo -e "\nStarting autoclean\n"
-	sudo apt autoclean
+	sudo apt autoclean -y
 fi
 
 
 echo -e "\nFinished."
 if [ "$F_PRINTUPGRADED" = true ]; then
-    echo -e "\nUpdated packages:\n"
-    echo "$UPGRADED_PACKAGES"
+    echo -e "\n\nUpdated packages:"
+	NOW=`date "+%Y-%m-%d_%Hh%M"`
+	echo -e "\n$NOW" | tee -a "$FILE"
+    echo "$UPGRADED_PACKAGES" | tee -a "$FILE"
 fi
 
 exit 0
-
-
-
-
-
-
-

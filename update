@@ -4,7 +4,7 @@
 #update this after every edit session
 
 #version major.minor.nonFunctionional
-VERSION="1.6.1"
+VERSION="1.6.2"
 # version 1.1.1  comment updates
 # version 1.1.2  removed USER so $USER takes from sysem var
 # version 1.2.0  git version added root check & changed to apt from apt-get
@@ -150,9 +150,9 @@ fi
 # Clean
 if [ "$F_CLEAN" = true ]; then
    	echo -e "\nStarting autoremove\n"
-	sudo apt autoremove
+	sudo apt autoremove -y
 	echo -e "\nStarting autoclean\n"
-	sudo apt autoclean -y
+	sudo apt autoclean
 fi
 
 

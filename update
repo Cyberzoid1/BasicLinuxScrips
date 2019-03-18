@@ -4,13 +4,14 @@
 #update this after every edit session
 
 #version major.minor.nonFunctionional
-VERSION="1.5.0"
+VERSION="1.5.1"
 # version 1.1.1  comment updates
 # version 1.1.2  removed USER so $USER takes from sysem var
 # version 1.2.0  git version added root check & changed to apt from apt-get
 # version 1.3.0  missed a command change to apt
 # version 1.4.0  better check for root.
 # version 1.5.0  fixed local user. runs clean by default
+# version 1.6.0  reworked program flow and improved argument parsing
 
 #things needign to be updated
 #file touch owner ship from pi::root to $user:root??
@@ -29,7 +30,6 @@ then
 fi
 
 
-
 #Check for root
 if [[ $EUID -ne 0 ]]; then
 	echo "This script must be run as root."
@@ -37,44 +37,108 @@ if [[ $EUID -ne 0 ]]; then
 	exit $?
 fi
 
-Update() {
-	echo ""
-	echo Starting Update
-	echo ""
-	sudo apt update
-	echo ""
-	echo Starting Upgrade
-	echo ""
-	sudo apt upgrade
-	echo ""
-	echo Finished.
-}
-
-Upgrade() {
-	echo ""
-	echo Starting only Upgrade
-	echo ""
-	sudo apt upgrade
-	echo ""
-	echo Finished.
-}
-
-clean() {
-	echo ""
-	echo Starting autoremove
-	echo ""
-	sudo apt autoremove
-	echo ""
-	echo Starting autoclean
-	echo ""
-	sudo apt autoclean
-	echo ""
-	echo Finished.
+# Options debugging
+OPTDEBUG() {
+	echo "UPD: $F_UPDATE"
+	echo "UPG: $F_UPGRADE"
+	echo "AD: $F_AUTODOWNLOAD"
+	echo "CL: $F_CLEAN"
+	echo "DR: $F_DRYRUN"
+	echo "INT: $F_INTERACTIVE"
 }
 
 
-# for daily cron job
-AutoDownload() {
+# Help info
+help() {
+    echo "Help"
+	echo "autodownload				Download packages without installing"
+	echo "clean						Run autoremove and autoclean"
+	echo "-d  --dry-run				Dry run"
+	echo "-h  --help				Show this help info"
+	echo "-i  --interactive			Interactive mode. Ask to install excluding autodownload mode"
+	echo "update					Only update package repositories"
+	echo "upgrade					Only upgrade packages"
+	echo "-v  --version				Show version information"
+}
+
+
+# Parse arguments
+F_UPDATE=true
+F_UPGRADE=true
+F_PRINTUPGRADED=false
+F_AUTODOWNLOAD=false
+F_CLEAN=true
+F_DRYRUN=""
+F_INTERACTIVE="-y"
+
+while test ${#} -gt 0
+do
+	case "$1" in
+		autodownload)
+			F_UPDATE=false
+			F_UPGRADE=true
+			F_AutoDownload=true
+			;;
+		clean)		# Clean only
+			F_UPDATE=false
+			F_UPGRADE=false
+			F_CLEAN=true
+			;;
+		-d|--dry-run)
+		    F_DRYRUN="-s"
+			;;
+		-h|--h|--help)
+		    help
+			exit 0
+			;;
+		-i|--interactive)
+		    F_INTERACTIVE=""
+			;;
+		update)		# Update only
+			F_UPDATE=true
+			F_UPGRADE=false
+			F_CLEAN=false
+			;;
+		upgrade)	# Upgrade only
+			F_UPDATE=false
+			F_UPGRADE=true
+			F_CLEAN=false
+			;;
+		-v|--v|--version)
+			echo "Update.sh version: $VERSION"
+			exit 0
+			;;
+		*)
+		    echo -e "Unknown argument: $1\n"
+			help
+			exit 1
+			;;
+	esac
+	shift	# shift to next argument
+done
+
+
+#debug flags
+#OPTDEBUG
+
+# Preserve upgradeable package list to print at the end.
+UPGRADED_PACKAGES="$(apt list --upgradeable)"
+
+# Update
+if [ "$F_UPDATE" = true ]; then
+	echo -e "\nStarting Update\n"
+    sudo apt update
+fi
+
+# Upgrade
+if [ "$F_UPGRADE" = true ]; then
+	echo -e "\nStarting Upgrade\n"
+	F_PRINTUPGRADED=true
+	sudo apt upgrade "$F_DRYRUN" "$F_INTERACTIVE"
+fi
+
+# Autodownload
+if [ "$F_UPGRADE" = false ] && [ "$F_AutoDownload" = true ]; then
 	NOW=`date "+%Y-%m-%d_%Hh%M"`
 	echo "-----Autoupdate check started"
 	sudo echo "-----Autoupdate check started $NOW -------------------------" >> $FILE
@@ -84,24 +148,28 @@ AutoDownload() {
 	sudo echo "-----Autoupdate check Finished ----------------------------------------
 	    " >> $FILE
 	echo "-----Autoupdate check Finished"
-}
+fi
 
-case "$1" in
-	-v|--v|--version)
-		echo "Update.sh version: $VERSION"
-		;;
-	autodownload)
-		AutoDownload
-		;;
-	clean)
-		clean
-		;;
-	upgrade)
-		Upgrade
-		;;
-	*)
-		Update
-		clean
-		;;
-esac
+# Clean
+if [ "$F_CLEAN" = true ]; then
+   	echo -e "\nStarting autoremove\n"
+	sudo apt autoremove
+	echo -e "\nStarting autoclean\n"
+	sudo apt autoclean
+fi
+
+
+echo -e "\nFinished."
+if [ "$F_PRINTUPGRADED" = true ]; then
+    echo -e "\nUpdated packages:\n"
+    echo "$UPGRADED_PACKAGES"
+fi
+
 exit 0
+
+
+
+
+
+
+

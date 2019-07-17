@@ -37,7 +37,7 @@ fi
 
 
 # Setup VIM escap key mapping
-ESCMAP="imap jj <ESC>"
+ESCMAP="imap <special> jj <ESC>"
 VIMLOC="$HOME/.vimrc"
 echo -e "\nSetting up ${VIMLOC}"
 if [ -f "$VIMLOC" ]; then

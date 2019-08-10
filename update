@@ -18,13 +18,14 @@ VERSION="1.6.2"
 #get local username
 LUSER=${SUDO_USER:-$USER}
 
-FILE=/home/$LUSER/autoupdateLog.log
+FILE=/var/log/autoupdateLog.log
 
 if [ ! -f $FILE ];
 then
    echo "File $FILE does not exist. creating"
-   touch $FILE
+   sudo touch $FILE
    sudo chown $LUSER:$LUSER $FILE
+   sudo chmod 666 "$FILE"
 fi
 
 
